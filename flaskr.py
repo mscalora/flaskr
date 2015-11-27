@@ -2,14 +2,16 @@
 
 import os
 from sqlite3 import dbapi2 as sqlite3
-from flask import Flask, request, session, g, redirect, url_for, abort, \
-     render_template, flash
+from flask import Flask, request, session, g, redirect, abort, render_template, flash, url_for
 
 
 # create our little application :)
 import sys
 
 app = Flask(__name__)
+
+def make_url(page):
+   return url_for(page).replace('mysite.fcgi/', '')
 
 # Load default config and override config from an environment variable
 app.config.update(dict(
@@ -19,7 +21,7 @@ app.config.update(dict(
     USERNAME='admin',
     PASSWORD='default'
 ))
-app.config.from_envvar('FLASKR_SETTINGS', silent=True)
+app.config.from_envvar('APP_SETTINGS_FILE', silent=False)
 
 
 def unauthenticated(func):
@@ -74,13 +76,13 @@ def before_request():
     if 'unauthenticated_list' not in globals():
         globals()['unauthenticated_list'] = ["static"]
     if 'logged_in' not in session and request.endpoint not in globals()['unauthenticated_list']:
-        return redirect(url_for('login'))
+        return redirect(make_url('login'))
 
 
 @app.route('/')
 def show_entries():
     if not session.get('logged_in'):
-        return redirect(url_for('login'))
+        return redirect(make_url('login'))
     db = get_db()
     cur = db.execute('select title, text from entries order by id desc')
     entries = cur.fetchall()
@@ -96,7 +98,7 @@ def add_entry():
                [request.form['title'], request.form['text']])
     db.commit()
     flash('New entry was successfully posted')
-    return redirect(url_for('show_entries'))
+    return redirect(make_url('show_entries'))
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -111,12 +113,12 @@ def login():
         else:
             session['logged_in'] = True
             flash('You were logged in')
-            return redirect(url_for('show_entries'))
-    return render_template('login.html', error=error)
+            return redirect(make_url('show_entries'))
+    return render_template('login.html', error=error, form_url=make_url('login'))
 
 
 @app.route('/logout')
 def logout():
     session.pop('logged_in', None)
     flash('You were logged out')
-    return redirect(url_for('show_entries'))
+    return redirect(make_url('show_entries'))
